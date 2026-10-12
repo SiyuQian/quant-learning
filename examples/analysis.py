@@ -3,6 +3,7 @@
 
 No external cash flows, tax, live trading or actual market calendar.
 Backtest: two-close signal, next-open fills, one unit, zero cash interest.
+No borrowing; stop before an actual sale would leave nonpositive cash/NAV.
 """
 import argparse
 import csv
@@ -108,7 +109,10 @@ def backtest(rows, initial_cash=200, fee=1):
             else:
                 trade = 'rejected_cash'
         elif target < shares:
-            cash += row['open'] - fee
+            sale_cash = cash + row['open'] - fee
+            if sale_cash <= 0:
+                raise ValueError(f'Backtest stopped on {row["date"]}: sale fee would leave nonpositive cash; no borrowing and positive NAV required.')
+            cash = sale_cash
             shares, trade, paid = 0, 'sell', fee
         equity = cash + shares * row['close']
         next_target = int(index >= 1 and row['close'] > (rows[index-1]['close'] + row['close']) / 2)
@@ -131,7 +135,7 @@ def backtest(rows, initial_cash=200, fee=1):
               'benchmark_return': benchmark / initial_cash - 1,
               'ledger': ledger}
     result['risk'] = metrics([(rows[0]['date'], initial_cash)] + [(row['date'], row['equity']) for row in ledger[1:]])
-    result['assumptions'] = 'Synthetic prices; one unit; next-open execution; 0% cash return; fixed fee per buy/sell; no spread/slippage/tax; final strategy holdings marked at close, no forced sale. Benchmark bought at first open, plus separate final liquidation value. Exposure is fraction of closing observations held.'
+    result['assumptions'] = 'Synthetic prices; one unit; next-open execution; 0% cash return; fixed fee per buy/sell; no borrowing; stop before an actual sale leaves nonpositive cash/NAV; no spread/slippage/tax; final strategy holdings marked at close, no forced sale. Benchmark bought at first open, plus separate final liquidation value. Exposure is fraction of closing observations held.'
     return result
 
 
@@ -205,7 +209,7 @@ def main():
         else:
             result = corporate_actions(rows)
         print(json.dumps(result, ensure_ascii=False, indent=2, allow_nan=False))
-    except (ValueError, OSError, OverflowError) as error:
+    except (ValueError, OSError, OverflowError, csv.Error) as error:
         print(f'Input error: {error}', file=sys.stderr)
         return 2
     return 0

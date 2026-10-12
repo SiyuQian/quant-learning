@@ -35,7 +35,7 @@ try {
     assert.equal(await download.failure(),null);
     assert.equal(fs.readFileSync(path,'utf8'),fs.readFileSync('examples/analysis.py','utf8'));
    }
-   if([5,17,23,24,27].includes(id))await page.screenshot({path:`${artifactDir}/${width}-lesson-${id}.png`,fullPage:true});
+   if([5,17,23,24,27,29].includes(id))await page.screenshot({path:`${artifactDir}/${width}-lesson-${id}.png`,fullPage:true});
   }
   await page.evaluate(()=>{location.hash='lesson-2';});
   await page.waitForSelector('#principal');
